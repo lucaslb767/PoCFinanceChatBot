@@ -46,3 +46,37 @@ tools = [
 
 funcoes_disponiveis = {'cotacao_historica' : cotacao_historica}
 
+mensagens = [{'role': 'user', 'content': 'Qual é a cotação da Microsoft agora?'}]
+
+
+
+resposta = client.chat.completions.create(
+    messages= mensagens,
+    model = 'gpt-4-turbo-2024-04-09',
+    tools = tools,
+    tool_choice="auto"
+)
+
+tool_calls = resposta.choices[0].message.tool_calls
+
+if tool_calls:
+    mensagens.append(resposta.choices[0].message)
+    for tool_call in tool_calls:
+        func_name = tool_call.function.name
+        function_to_call = funcoes_disponiveis[func_name]
+        func_args = json.loads(tool_call.function.arguments)
+        func_return = function_to_call(**func_args)
+        mensagens.append({
+            'tool_call_id': tool_call.id,
+            'role': 'tool',
+            'name': func_name,
+            'content': func_return
+        })
+        segunda_resposta = client.chat.completions.create(
+            messages=mensagens,
+            model = 'gpt-4-turbo-2024-04-09'
+        )
+        print(segunda_resposta.choices[0].message)
+        mensagens.append(segunda_resposta.choices[0].message)
+
+
