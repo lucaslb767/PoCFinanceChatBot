@@ -4,17 +4,20 @@ import json
 import openai
 from dotenv import load_dotenv, find_dotenv
 
-def cotacao_historica(ticker:str, periodo:str = '1y'):
-    dat = yf.Ticker(ticker)
-    hist = dat.history(period=periodo)
-    # print(f'info: {dat.info}')
-    # print(f'calendar: {dat.calendar}')
-    # print(f'analysis_price_target: {dat.analyst_price_targets}')
-    # print(f'quartely income stmt: {dat.quarterly_income_stmt}')
-    print(f'closing hist: {hist}')
-    # print(f'option chain: {dat.option_chain(dat.options[0]).calls}')
+_ = load_dotenv(find_dotenv())
 
-cotacao_historica('MSFT')
+client = openai.Client()
+
+def cotacao_historica(ticker:str, periodo:str = '1mo') -> dict:
+    dat = yf.Ticker(ticker)
+    hist = dat.history(period=periodo)['Close']
+    hist.index = hist.index.strftime('%Y-%m-%d')
+    if len(hist) > 30:
+        slice_size = int(len(hist) / 30)
+        hist = hist.iloc[::-slice_size][::-1]
+    return hist.to_json()
+
+print(cotacao_historica('PETR4.SA'))
 
 tools = [
     {
@@ -27,15 +30,19 @@ tools = [
                 "properties": {
                     "ticker": {
                         "type": "string",
-                        "description": "O ticker da ação. Exemplo: 'PETR4' para a petrobras",
+                        "description": "O ticker da ação. Exemplo: 'PETR4.SA' para a petrobras",
                     },
-                    "unidade": {
+                    "periodo": {
                         "type": "string", 
-                        "enum": ["celsius", "fahrenheit"]
+                        'description': 'Período que será retornado de dados históricos sendo "1d","1mo"',
+                        'enum': ['1d','5d','1mo', '6mo', '1y', '5y', '10y', 'ytd', 'max']
                     },
                 },
-                "required": ["local"],
+                "required": ["ticker"],
             },
         },
     }
     ]
+
+funcoes_disponiveis = {'cotacao_historica' : cotacao_historica}
+
